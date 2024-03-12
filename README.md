@@ -1,3 +1,5 @@
+# STAT_30040
+
 Various numerical assignments from STAT 30040 (Statistical Theory and Methods IIa), taught by Dr. Mei Wang, at UChicago.
 
 * In Homework 2, Exercise 1, we examine how to approximate probabilities under the binomial distribution using the Poisson and normal distributions. In Exercise 4, we compare the coverage probabilities of various asymptotic confidence intervals, including those constructed with the Wald, Wilson, and variance stabilization methods.

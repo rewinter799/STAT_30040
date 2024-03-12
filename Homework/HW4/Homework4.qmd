@@ -1,0 +1,80 @@
+---
+title: "Homework 4"
+author: "Robert Winter"
+format: pdf
+editor: visual
+---
+
+```{r}
+library(tidyverse)
+```
+
+# Exercise 2
+
+```{r}
+### Data ###
+# 1900--1949
+k1 = 7810
+n1 = 14736
+# 1950--1999
+k2 = 6688
+n2 = 12673
+
+### MLE Estimates ###
+# Under H0: p1 = p2
+pstar_hat = (k1+k2)/(n1+n2)
+# Under H1: p1 != p2
+p1_hat = k1/n1
+p2_hat = k2/n2
+
+### LR Statistic ###
+q = -2 * (((k1+k2)*log(pstar_hat) + (n1+n2-k1-k2)*log(1-pstar_hat)) -
+          (k1*log(p1_hat) + (n1-k1)*log(1-p1_hat) + 
+           k2*log(p2_hat) + (n2-k2)*log(1-p2_hat)))
+1 - pchisq(q, 1)
+```
+
+# Exercise 4
+
+```{r}
+# Data
+leaflets = data.frame(angle = c(140, 138, 140, 138, 142,
+                                140, 150, 120, 128, 130,
+                                118, 130, 128, 118, 118),
+                      delay = as.factor(c(30, 30, 30, 30, 30,
+                                          45, 45, 45, 45, 45,
+                                          60, 60, 60, 60, 60)))
+
+# Compute group means and grand mean
+y30_bar = mean(filter(leaflets, delay == 30)$angle)
+y45_bar = mean(filter(leaflets, delay == 45)$angle)
+y60_bar = mean(filter(leaflets, delay == 60)$angle)
+ybar = mean(leaflets$angle)
+
+# Compute between-group sum of squares
+SSt = (length(filter(leaflets, delay == 30)$angle) * (y30_bar - ybar)^2) +
+      (length(filter(leaflets, delay == 45)$angle) * (y45_bar - ybar)^2) +
+      (length(filter(leaflets, delay == 60)$angle) * (y60_bar - ybar)^2)
+
+# Prep for within-group sum of squares
+leaflets = leaflets %>%
+  group_by(delay) %>%
+  mutate(group_mean = mean(angle)) %>%
+  mutate(sse_contribution = (angle - group_mean)^2)
+# Compute within-group sum of squares
+SSe = sum(leaflets$sse_contribution)
+
+# Compute F-value
+F = (SSt/(3-1)) / (SSe/(15-3))
+
+# Compute p-value
+p = 1 - pf(F, 2, 12)
+```
+
+```{r}
+leaflets_anova = aov(angle ~ delay,
+                     data = leaflets)
+
+# leaflets_anova
+summary(leaflets_anova)
+```

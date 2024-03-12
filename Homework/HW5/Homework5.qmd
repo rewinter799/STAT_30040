@@ -1,0 +1,448 @@
+---
+title: "STAT 30040: Homework 5"
+author: "Robert Winter"
+format: pdf
+editor: visual
+
+highlight-style: pygments
+geometry:
+      - top=30mm
+      - left=30mm
+toc: true
+toc-title: Table of Contents
+number-sections: true
+
+engine: knitr
+
+# Wrap code chunk text
+include-in-header:
+  text: |
+    \usepackage{fvextra}
+    \DefineVerbatimEnvironment{Highlighting}{Verbatim}{breaklines,commandchars=\\\{\}}
+---
+
+```{r}
+#| echo: false
+#| warning: false
+#| output: false
+
+library(dplyr)
+```
+
+# Exercise 1: Two-Way ANOVA Interaction Effect
+
+**Below is the partial output of an ANOVA table of a two-way ANOVA model with interaction.**
+
+![](Q1PartialANOVA.jpg){width="479"}
+
+## Part (a)
+
+**Complete the partial ANOVA table. (Note: The R command `pf(5.8, df1=3, df2=4)` computes** $\mathbb{P}(F \le 5.8)$ **where** $F \sim F_{3,4}$**.)**
+
+Each mean square is computed as the ratio of the corresponding sum of squares and degrees of freedom:
+
+```{r}
+MS_poison = 23.290 / 1
+MS_method = 8.251 / 1
+MS_poisonxmethod = 0.012 / 1
+MS_error = 196.960 / 44
+
+c(MS_poison, MS_method, MS_poisonxmethod, MS_error)
+```
+
+Each $F$ statistic is computed as the ratio of the corresponding mean square to $MS_{error}$:
+
+```{r}
+F_poison = MS_poison / MS_error
+F_method = MS_method / MS_error
+F_poisonxmethod = MS_poisonxmethod / MS_error
+
+c(F_poison, F_method, F_poisonxmethod)
+```
+
+Each $p$-value is equal to $1 - \mathbb{P}(F \le F_{1, 44})$, where $F$ is the corresponding $F$ statistic:
+
+```{r}
+p_poison = 1 - pf(F_poison, df1 = 1, df2 = 44)
+p_method = 1 - pf(F_method, df1 = 1, df2 = 44)
+p_poisonxmethod = 1 - pf(F_poisonxmethod, df1 = 1, df2 = 44)
+
+c(p_poison, p_method, p_poisonxmethod)
+```
+
+Thus, the completed ANOVA table is:
+
+|                 | `Df` | `Sum Sq`  |      `Mean Sq`       |      `F value`      |      `Pr(>F)`       |
+|:-----------|:----------:|:----------:|:----------:|:----------:|:----------:|
+| `Poison`        | $1$  | $23.290$  |    `r MS_poison`     |    `r F_poison`     |    `r p_poison`     |
+| `Method`        | $1$  |  $8.251$  |    `r MS_method`     |    `r F_method`     |    `r p_method`     |
+| `Poison:Method` | $1$  |  $0.012$  | `r MS_poisonxmethod` | `r F_poisonxmethod` | `r p_poisonxmethod` |
+| `Residuals`     | $44$ | $196.960$ |     `r MS_error`     |                     |                     |
+
+## Part (b)
+
+**Derive the ANOVA table for the additive (no interaction) two-way ANOVA model (for the same data). Do the** $p$**-values differ from the corresponding** $p$**-values in the model in part (a)? Explain why.**
+
+The degrees of freedom, sums of squares, and hence mean squares for the two main effects remain the same as in part (a). However, the residual source of variation "absorbs" the degrees of freedom and sum of squares that are no longer being separated out into the Poison-Method interaction. The new residual degrees of freedom is $44 + 1 = 45$, the new residual sum of squares is $0.012 + 196.960 = 196.972$, and the new residual mean square is the ratio of the latter to the former:
+
+```{r}
+df_error2 = 44 + 1
+SS_error2 = 0.012 + 196.960
+MS_error2 = SS_error2 / df_error2
+
+c(df_error2, SS_error2, MS_error2)
+```
+
+Since $MS_{error}$ has changed, the $F$ statistics and $p$-values for Poison and Method change as well. Each new $F$ statistic is computed as the ratio of the main effect's mean square (which has not changed) to the "new" $MS_{error}$. Each new $p$ value is now equal to $1 - \mathbb{P}(F \le F_{1, 45})$, where $F$ is the main effect's $F$ statistic and the second degree of freedom of the $F$ distribution is now $45$, not $44$.
+
+```{r}
+F_poison2 = MS_poison / MS_error2
+F_method2 = MS_method / MS_error2
+
+c(F_poison2, F_method2)
+
+p_poison2 = 1 - pf(F_poison2, df1 = 1, df2 = 45)
+p_method2 = 1 - pf(F_method2, df1 = 1, df2 = 45)
+
+c(p_poison2, p_method2)
+```
+
+Thus, the completed ANOVA table is:
+
+|             |     `Df`      |   `Sum Sq`    |   `Mean Sq`   |   `F value`   |   `Pr(>F)`    |
+|------------|:----------:|:----------:|:----------:|:----------:|:----------:|
+| `Poison`    |      $1$      |   $23.290$    | `r MS_poison` | `r F_poison2` | `r p_poison2` |
+| `Method`    |      $1$      |    $8.251$    | `r MS_method` | `r F_method2` | `r p_method2` |
+| `Residuals` | `r df_error2` | `r SS_error2` | `r MS_error2` |               |               |
+
+## Part (c)
+
+**Which model is better? Is including the interaction more appropriate?**
+
+In Part (a), we found that the Poison-Method interaction effect on survival was highly non-significant, with a $p$-value of approximately $0.959$. Since this interaction term does not contribute a significant, incremental explanation for the variation in survival, we prefer the model in Part (b) that includes main effects only. It is worth noting that the $p$-values for the main effects hardly change between the two models (approximately $0.027$ vs $0.025$ for Poison, and approximately $0.181$ vs. $0.177$ for Method), so our conclusions about the main effects of Poison and Method are robust to the inclusion/exclusion of the interaction term.
+
+# Exercise 2: Two-Way Versus One-Way ANOVA
+
+**A baseball league changed the strike zone each year for three years. The data below show the number of home runs (HR) that each of four players hit for the three years.**
+
+![](Q2Baseball.jpg)
+
+**You may input the data to R and conduct the analysis below.**
+
+```{r}
+baseball = data.frame(HRs = c(23, 12, 18,
+                              21, 8, 15,
+                              31, 25, 30,
+                              15, 10, 15),
+                      player = c(1, 1, 1,
+                                 2, 2, 2,
+                                 3, 3, 3,
+                                 4, 4, 4) %>% as.factor(),
+                      zone = c(1, 2, 3,
+                               1, 2, 3,
+                               1, 2, 3,
+                               1, 2, 3) %>% as.factor())
+```
+
+## Part (a)
+
+**Perform a one-way analysis of variance for the Player effect on HR. Is there a significant Player effect by the analysis?**
+
+```{r}
+aova = aov(HRs ~ player,
+           data = baseball)
+summary(aova)
+```
+
+We use a one-way ANOVA to test the null hypothesis that the average number of home runs hit was equal across the four players against the alternative hypothesis that the average number of home runs was different for at least two of the four players. We recover a $p$-value of $0.016 < 0.05$, which indicates that the average number of home runs *does* vary significantly between at least two players. In other words, there *is* a significant Player effect.
+
+## Part (b)
+
+**Perform a one-way analysis of variance for the Zone effect on HR. Is there a significant Zone effect by the analysis?**
+
+```{r}
+aovb = aov(HRs ~ zone,
+           data = baseball)
+summary(aovb)
+```
+
+We use a one-way ANOVA to test the null hypothesis that the average number of home runs hit was equal across the three strike zones against the alternative hypothesis that the average number of home runs was different for at least two of the three strike zones. We recover a $p$-value of $0.265 > 0.05$, meaning that there is [not]{.underline} statistical evidence that the average number of home runs varies significantly across strike zones. In other words, there is [not]{.underline} evidence of a significant Zone effect.
+
+## Part (c)
+
+**Perform a two-way analysis of variance for the additive effects of Player and Zone on HR. Is there a significant Player effect or Zone effect by the analysis?**
+
+```{r}
+aovc = aov(HRs ~ player + zone,
+            data = baseball)
+summary(aovc)
+```
+
+We use a two-way ANOVA to test two null hypotheses.
+
+\(A\) We test the null hypothesis that the average number of home runs hit was equal across the four players against the alternative hypothesis that the average number of home runs was different for at least two of the four players. We recover a $p$-value of $0.0003 < 0.001$, which indicates that the average number of home runs *does* vary significantly between at least two players. In other words, there *is* a significant Player effect — as we found in part (a) above.
+
+\(B\) We test the null hypothesis that the average number of home runs hit was equal across the three strike zones against the alternative hypothesis that the average number of home runs was different for at least two of the three strike zones. We recover a $p$-value of $0.002 < 0.01$, which indicates that the average number of home runs *does* vary significantly between at least two strike zones. In other words, there *is* a significant Zone effect — unlike our finding in part (b) above.
+
+## Part (d)
+
+**Explain the reasons of getting different conclusions from the above analyses, and which conclusion you prefer.**
+
+In each of Parts (a) and (c), we found significant Player effects, so there is no discrepancy here. However, there was a discrepancy in our results of Parts (b) and (c) with respect to Zone effects.
+
+In Part (b), we performed a one-way ANOVA to assess whether variation in HR was explained by variation in Zone, and did not find statistical evidence that this was the case. In this analysis, all the variation in HR that was not explained by variation in Zone was attributed to the residuals, giving us a relatively large value of $SS_{error}$, hence $MS_{error}$. We computed an $F$ statistic of $F = \frac{MS_{zone}}{MS_{error}} \approx \frac{79.08}{51.19} \approx 1.545$.
+
+In Part (c), we performed a two-way ANOVA to assess whether variation in HR was explained by variation in (A) Player, and (B) Zone, and this time, we *did* find statistical evidence that variation in HR was explained by variation in Zone. By also taking into account how variation in HR was explained by variation in Player, this model had less unexplained/residual variation in HR than the model in part (b). As such, this model had lower values of $SS_{error}$ and thus $MS_{error}$. Dividing the same $MS_{Zone}$ by a smaller $MS_{error}$ gave us a much larger $F$ statistic than before: $F = \frac{MS_{Zone}}{MS_{error}} \approx \frac{79.08}{4.08} \approx 19.37$. This much larger $F$ statistic is associated with a much smaller $p$-value, allowing us to find a significant Zone effect where we couldn't before. (It is worth noting that technically, we are comparing our "old" and "new" $F$ statistics to two different distributions: $F_{2,9}$ and $F_{2, 6}$, respectively. But the shapes of the corresponding densities are similar enough that the much larger $F$ statistic gives a much smaller $p$-value.)
+
+We prefer the model in Part (c) to the model in Part (b). By taking into account both Player and Zone, the model in Part (c) is able to significantly reduce $SS_{error}$ relative to the model in Part (b), meaning that it describes the data better overall. In particular, accounting for Player effects allows us to parse out Zone effects that were previously masked.
+
+## Part (e)
+
+**Can we use a two-way analysis of variance to test the interaction effect of Player and Zone? Explain.**
+
+We cannot use a two-way ANOVA to test the interaction effect of Player and Zone on HRs. Since there are four Players and three Zones in our data,
+
+-   the total number of degrees of freedom in the ANOVA is $(3 \times 4) - 1 = 11$,
+
+-   the degrees of freedom associated with the Player source of variation is $4 - 1 = 3$,
+
+-   the degrees of freedom associated with the Zone source of variation is $3 - 1 = 2$, and
+
+-   the degrees of freedom associated with the Player-Zone interaction source of variation is $(4-1) \times (3-1) = 3 \times 2 = 6$.
+
+But since $3 + 2 + 6 = 11$, our sources of explained variation have "exhausted" the degrees of freedom available to the model; there are no degrees of freedom left over to attribute to the residuals/error. As such, we cannot compute $MS_{error}$ or the $F$ statistic necessary to test the Player-Zone interaction effect.
+
+Another way to see the problem is through the number of observations. Since the strike zone was changed every year, there is only one home run tally per player per zone. So, if we were to incorporate a Player-Zone interaction into an ANOVA, every Player-Zone pair would correspond to just one data point. Without replicates for each Player-Zone pair, there is no residual variation left over after accounting for the Player-Zone interaction! Again, it is impossible to compute $MS_{error}$ or the $F$ statistic corresponding to the Player-Zone interaction.
+
+Below, we try running ANOVAs including the Player-Zone interaction, both with and without main effects. Observe that in each case, R is not able to do any computations related to the residual variation, hence is unable to calculate $F$ statistics for each explained source of variation.
+
+```{r}
+aove1 = aov(HRs ~ player*zone,
+            data = baseball)
+summary(aove1)
+```
+
+```{r}
+aove2 = aov(HRs ~ player:zone,
+            data = baseball)
+summary(aove2)
+```
+
+# Exercise 3: Two-Way Additive Model Without Replication
+
+**For the two factor observations** $(y_{ij})$ **in the following table,**
+
+![](Q3Data.jpg)
+
+**consider the model (with** $i$ **indexes row factor,** $j$ **column factor):**
+
+$$
+\begin{aligned}
+& Y_{ij} = \mu + \alpha_i + \beta_j + \varepsilon_{ij}, \\
+& \varepsilon_{ij} \sim \mathcal{N}(0, \sigma^2), \\
+& i = 1, \ldots, 4; \; j=1, \ldots, 5.
+\end{aligned}
+$$
+
+```{r}
+q3data = matrix(c(4.4, 4.3, 4.0, 3.6, 3.3,
+                  4.1, 4.1, 4.0, 4.0, 3.9,
+                  3.2, 3.9, 3.8, 4.1, 4.4,
+                  3.9, 4.0, 3.8, 4.1, 4.4),
+                nrow = 4,
+                ncol = 5,
+                byrow = TRUE)
+rownames(q3data) = c("A-1", "A-2", "A-3", "A-4")
+colnames(q3data) = c("B-1", "B-2", "B-3", "B-4", "B-5")
+```
+
+## Part (a)
+
+**Under the constraints** $\sum_{i=1}^5 \alpha_i = 0$**,** $\sum_{j=1}^5 \beta_j = 0$ **(as in Rice** $\S 12.3.1$**), use simple averaging operations (differences, sums, and averages) to compute parameter estimates** $\hat{\mu}$**,** $\hat{\alpha}_i$**, and** $\hat{\beta}_j$**.**
+
+$\hat{\mu}$ is the grand mean of all observations: $\hat{\mu} = \bar{Y}_{\bullet\bullet}$.
+
+```{r}
+mu_hat = mean(q3data)
+mu_hat
+```
+
+Each $\hat{\alpha}_i$ is the difference between the mean for the $i$th group of Factor A and the grand mean: $\hat{\alpha}_i = \bar{Y}_{i\bullet} - \bar{Y}_{\bullet\bullet}$.
+
+```{r}
+# Compute alpha estimates
+a1_hat = mean(q3data["A-1", ]) - mu_hat
+a2_hat = mean(q3data["A-2", ]) - mu_hat
+a3_hat = mean(q3data["A-3", ]) - mu_hat
+a4_hat = mean(q3data["A-4", ]) - mu_hat
+
+# Vector of alphas
+alpha = c(a1_hat, a2_hat, a3_hat, a4_hat)
+alpha
+
+# alphas sum to 0, as desired
+sum(alpha)
+```
+
+Each $\hat{\beta}_j$ is the difference between the mean for the $j$th group of Factor B and the grand mean: $\hat{\beta}_j = \bar{Y}_{\bullet j} - \bar{Y}_{\bullet\bullet}$.
+
+```{r}
+# Compute beta estimates
+b1_hat = mean(q3data[ ,"B-1"]) - mu_hat
+b2_hat = mean(q3data[ ,"B-2"]) - mu_hat
+b3_hat = mean(q3data[ ,"B-3"]) - mu_hat
+b4_hat = mean(q3data[ ,"B-4"]) - mu_hat
+b5_hat = mean(q3data[ ,"B-5"]) - mu_hat
+
+# Vector of betas
+beta = c(b1_hat, b2_hat, b3_hat, b4_hat, b5_hat)
+beta
+
+# betas sum to 0, as desired (up to floating point error)
+sum(beta)
+```
+
+In summary,
+
+-   $\hat{\mu} =$ `r mu_hat`,
+
+-   $\hat{\alpha}_1 =$ `r alpha[1]`,
+
+-   $\hat{\alpha}_2 =$ `r alpha[2]`,
+
+-   $\hat{\alpha}_3 =$ `r alpha[3]`,
+
+-   $\hat{\alpha}_4 =$ `r alpha[4]`,
+
+-   $\hat{\beta}_1 =$ `r beta[1]`,
+
+-   $\hat{\beta}_2 =$ `r beta[2]`,
+
+-   $\hat{\beta}_3 =$ `r beta[3]`,
+
+-   $\hat{\beta}_4 =$ `r beta[4]`, and
+
+-   $\hat{\beta}_5 =$ `r beta[5]`,
+
+## Part (b)
+
+**Create the 4-by-5 table of residuals** $y_{ij} - \hat{\mu} - \hat{\alpha}_i - \hat{\beta}_j$**.**
+
+We present the table of residuals $\hat{\varepsilon}_{ij} = y_{ij} - \hat{\mu} - \hat{\alpha}_i - \hat{\beta}_j$ below.
+
+```{r}
+# Function to compute residuals based on the above formula
+residualify = function(i, j){
+  q3data[i,j] - mu_hat - alpha[i] - beta[j]
+}
+
+# Make an empty 4x5 matrix of residuals
+resids = matrix(data = NA, nrow = 4, ncol = 5)
+rownames(resids) = c("A-1", "A-2", "A-3", "A-4")
+colnames(resids) = c("B-1", "B-2", "B-3", "B-4", "B-5")
+
+# Populate matrix of residuals
+for(i in 1:4){
+  for(j in 1:5){
+    resids[i,j] = residualify(i,j)
+  }
+}
+
+# Display
+resids
+```
+
+## Part (c)
+
+**How does the size of the residuals in Part (b) compare to the size of the estimated row and column effects** $\hat{\alpha}_i$ **and** $\hat{\beta}_j$ **in Part (a)?**
+
+```{r}
+min_effect = min(min(abs(alpha)),
+                 min(abs(beta)))
+
+max_effect = max(max(abs(alpha)),
+                 max(abs(beta)))
+```
+
+The magnitudes of the row and column effects $\hat{\alpha}_i$ and $\hat{\beta}_j$ are between `r min_effect` and `r max_effect`. Thus, the row and column effects $\hat{\alpha}_i$ and $\hat{\beta}_j$ are on the same orders of magnitude of the residuals $\hat{\varepsilon}_{ij}$. In some cases, the row and column effects are even smaller than the corresponding residuals! For example, $|\hat{\beta}_3| = 0.065 < \hat{\alpha}_4 = 0.075 < |\varepsilon_{43}| = 0.175$. This is not very encouraging: there is still just as much (if not more) unexplained variation in $y_{ij}$ after accounting for Factors A and B as there was variation in $y_{ij}$ explained by Factors A and B.
+
+# Exercise 4: Sequential ANOVA
+
+**Below are two sequential ANOVA tables for the same data, obtained from a two factor treatment (A and B) experiment. The data are not shown.**
+
+![](Q4ANOVA.jpg)
+
+## Part (a)
+
+**Complete the second table on the right.**
+
+Regardless of the order of the sequential ANOVA, the degrees of freedom for each source of variation are the same. The sequential sum of squares and mean squares of the interaction term $A \times B$ and the error are the same, as well. The total sum of squares is also unchanged. We can therefore "back into" the sum of squares for Factor A by subtraction ($SS_A = SS_{Total} - SS_B - SS_{A \times B} - SS_{error}$) and then compute $MS_A$ as usual:
+
+```{r}
+SS_A2 = (3.3255 + 112.95 + 0.48787 + 0.8223) -
+        (116.25 + 0.48787 + 0.8223)
+MS_A2 = SS_A2 / 3
+
+c(SS_A2, MS_A2)
+```
+
+| `SOURCE` | `DF` |   `SS`    |    `MS`    |
+|:--------:|:----:|:---------:|:----------:|
+|   `B`    | $3$  | $116.25$  |  $38.749$  |
+|   `A`    | $3$  | `r SS_A2` | `r MS_A2`  |
+|  `A*B`   | $9$  | $0.48787$ | $0.054207$ |
+| `ERROR`  | $14$ | $0.8223$  | $0.058736$ |
+
+## Part (b)
+
+**What do you conclude about the significance of Treatment A effects, Treatment B effects, and interactions?**
+
+First, we complete the left ANOVA table (first analyze Factor A, then Factor B), including $F$ statistics and $p$-values:
+
+```{r}
+F_A1 = 1.1085 / 0.058736
+F_B1 = 37.65 / 0.058736
+F_AB1 = 0.054207 / 0.058736
+
+p_A1 = 1 - pf(F_A1, 3, 14)
+p_B1 = 1 - pf(F_B1, 3, 14)
+p_AB1 = 1 - pf(F_AB1, 9, 14)
+
+c(p_A1, p_B1, p_AB1)
+```
+
+| `Source` | `DF` |   `SS`    |    `MS`    |    `F`    |          `p-value`          |
+|:----------:|:----------:|:----------:|:----------:|:----------:|:----------:|
+|   `A`    | $3$  | $3.3255$  |  $1.1085$  | `r F_A1`  | `r signif(p_A1, digits=4)`  |
+|   `B`    | $3$  | $112.95$  |  $37.65$   | `r F_B1`  | `r signif(p_B1, digits=4)`  |
+|  `A*B`   | $9$  | $0.48787$ | $0.054207$ | `r F_AB1` | `r signif(p_AB1, digits=4)` |
+| `ERROR`  | $14$ | $0.8223$  | $0.058736$ |           |                             |
+
+Next, we complete the right ANOVA table (first analyze Factor B, then Factor A), including $F$ statistics and $p$-values:
+
+```{r}
+F_B2 = 38.749 / 0.058736
+F_A2 = MS_A2 / 0.058736
+F_AB2 = 0.054207 / 0.058736
+
+p_B2 = 1 - pf(F_B2, 3, 14)
+p_A2 = 1 - pf(F_A2, 3, 14)
+p_AB2 = 1 - pf(F_AB2, 9, 14)
+
+c(p_B2, p_A2, p_AB2)
+```
+
+| `SOURCE` | `DF` |   `SS`    |    `MS`    |    `F`    |          `p-value`          |
+|:----------:|:----------:|:----------:|:----------:|:----------:|:----------:|
+|   `B`    | $3$  | $116.25$  |  $38.749$  | `r F_B2`  | `r signif(p_B2, digits=4)`  |
+|   `A`    | $3$  | `r SS_A2` | `r MS_A2`  | `r F_A2`  | `r signif(p_A2, digits=4)`  |
+|  `A*B`   | $9$  | $0.48787$ | $0.054207$ | `r F_AB2` | `r signif(p_AB2, digits=4)` |
+| `ERROR`  | $14$ | $0.8223$  | $0.058736$ |           |                             |
+
+As shown in the first table above, when we analyze Factor A first, then Factor B second, the effects of Factors A and B both appear significant. However, as shown in the second table, when we analyze Factor B first, then Factor A second, only Factor B's effect appears significant. In other words, Factor A does not significantly explain variation in our variable of interest once we have already accounted for variation in Factor B. We can therefore conclude that Treatment B has a significant effect on our variable of interest, but Treatment A does not. Meanwhile, regardless of the order in which we analyze Factors A and B, the interaction effect of A $*$ B has a $p$-value of approximately $0.534 > 0.05$, so we can also conclude that the interaction of Factors A and B does not have a significant effect on our variable of interest.
+
+## Part (c)
+
+**Assume there are no empty cells, that is, there is at least one observation in every combination of the levels of the two treatments. What is your guess on the likely pattern (e.g., numbers) of replicates? Could all treatment combinations have the same number of replicates?**
+
+Since Factors A and B are each associated with three degrees of freedom, each of these factors have four levels, making for $4 \times 4 = 16$ A-B treatment combinations in total. If all 16 of these treatment combinations had the same number of replicates, then regardless of the sequence in which we analyzed Factors A and B, the resulting ANOVA tables (including the sums of squares, mean squares, etc.) would be identical. Since the ANOVA table for analyzing Factor A, then Factor B is different than the ANOVA table for analyzing Factor B, then Factor A, it is [not]{.underline} possible that each of the 16 treatment combinations had the same number of replicates. In other words, the data must be unbalanced. Given that the $p$-value associated with Factor A differs so significantly between the two ANOVA sequences, it might even be the case that the data are highly unbalanced (i.e., that there are very different numbers of replicates for each A-B treatment combination).
